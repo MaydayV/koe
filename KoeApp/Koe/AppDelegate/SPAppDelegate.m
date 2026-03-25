@@ -11,6 +11,7 @@
 #import "SPOverlayPanel.h"
 #import "SPHistoryManager.h"
 #import "SPSetupWizardWindowController.h"
+#import "SPLocalization.h"
 #import "koe_core.h"
 #import <sys/stat.h>
 #import <UserNotifications/UserNotifications.h>
@@ -82,6 +83,7 @@
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
     NSLog(@"[Koe] Application terminating...");
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     if (self.configWatcher) {
         dispatch_source_cancel(self.configWatcher);
         self.configWatcher = nil;
@@ -270,7 +272,7 @@
 
 - (void)sendWarningNotification:(NSString *)message {
     UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.title = @"Koe Warning";
+    content.title = [SPLocalization tr:@"notification.warning_title"];
     content.body = message;
     content.sound = nil;
 
@@ -289,7 +291,7 @@
 
 - (void)sendErrorNotification:(NSString *)message {
     UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.title = @"Koe Error";
+    content.title = [SPLocalization tr:@"notification.error_title"];
     content.body = message;
     content.sound = nil; // Already playing error cue
 
@@ -327,7 +329,9 @@
 }
 
 - (void)statusBarMenuDidClose {
-    self.hotkeyMonitor.suspended = NO;
+    // Keep hotkey suspended while setup wizard is open so text fields can
+    // use Command shortcuts (copy/paste/select-all) without triggering hotkey logic.
+    self.hotkeyMonitor.suspended = self.setupWizard.window.isVisible;
 }
 
 - (void)statusBarDidSelectQuit {
@@ -344,7 +348,28 @@
         self.setupWizard = [[SPSetupWizardWindowController alloc] init];
         self.setupWizard.delegate = self;
     }
+
+    // Suspend hotkey while editing wizard inputs.
+    self.hotkeyMonitor.suspended = YES;
+
+    // Re-register close observer to avoid duplicate notifications.
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:NSWindowWillCloseNotification
+                                                  object:self.setupWizard.window];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(setupWizardWindowWillClose:)
+                                                 name:NSWindowWillCloseNotification
+                                               object:self.setupWizard.window];
+
     [self.setupWizard showWindow:nil];
+}
+
+- (void)setupWizardWindowWillClose:(NSNotification *)notification {
+    (void)notification;
+    self.hotkeyMonitor.suspended = NO;
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:NSWindowWillCloseNotification
+                                                  object:self.setupWizard.window];
 }
 
 #pragma mark - SPSetupWizardDelegate

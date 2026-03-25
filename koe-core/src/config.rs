@@ -15,6 +15,8 @@ pub struct Config {
     pub dictionary: DictionarySection,
     #[serde(default)]
     pub hotkey: HotkeySection,
+    #[serde(default)]
+    pub ui: UiSection,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -115,6 +117,14 @@ pub struct HotkeySection {
     /// Default: "fn"
     #[serde(default = "default_trigger_key")]
     pub trigger_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct UiSection {
+    /// UI language for app text.
+    /// Options: "en", "zh"
+    #[serde(default = "default_ui_language")]
+    pub language: String,
 }
 
 /// Resolved hotkey parameters for the native side
@@ -221,6 +231,9 @@ fn default_system_prompt_path() -> String {
 fn default_trigger_key() -> String {
     "fn".into()
 }
+fn default_ui_language() -> String {
+    "en".into()
+}
 fn default_user_prompt_path() -> String {
     "user_prompt.txt".into()
 }
@@ -251,6 +264,11 @@ impl Default for DictionarySection {
     }
 }
 impl Default for HotkeySection {
+    fn default() -> Self {
+        serde_yaml::from_str("{}").unwrap()
+    }
+}
+impl Default for UiSection {
     fn default() -> Self {
         serde_yaml::from_str("{}").unwrap()
     }
@@ -380,23 +398,27 @@ pub fn ensure_defaults() -> Result<bool> {
 const DEFAULT_CONFIG_YAML: &str = r#"# Koe - Voice Input Tool Configuration
 # ~/.koe/config.yaml
 
+ui:
+  # UI language: en | zh
+  language: "en"
+
 asr:
   # ASR provider: doubao | qwen
   provider: "doubao"
-  # Doubao (豆包) Streaming ASR 2.0 (优化版双向流式)
+  # Doubao Streaming ASR 2.0 (optimized duplex streaming)
   url: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
-  app_key: ""          # X-Api-App-Key (火山引擎 App ID)
-  access_key: ""       # X-Api-Access-Key (火山引擎 Access Token)
+  app_key: ""          # X-Api-App-Key (Volcengine App ID)
+  access_key: ""       # X-Api-Access-Key (Volcengine Access Token)
   resource_id: "volc.seedasr.sauc.duration"
   connect_timeout_ms: 3000
   final_wait_timeout_ms: 5000
-  enable_ddc: true     # 语义顺滑 (去除口语重复/语气词)
-  enable_itn: true     # 文本规范化 (数字、日期等)
-  enable_punc: true    # 自动标点
-  enable_nonstream: true  # 二遍识别 (流式+非流式, 提升准确率)
-  # Qwen Realtime ASR (阿里云百炼)
+  enable_ddc: true     # semantic smoothing (remove repeated fillers)
+  enable_itn: true     # inverse text normalization (numbers, dates, etc.)
+  enable_punc: true    # automatic punctuation
+  enable_nonstream: true  # second-pass recognition for better accuracy
+  # Qwen Realtime ASR (Alibaba Bailian)
   qwen_base_url: "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
-  qwen_api_key: ""     # 百炼 API Key
+  qwen_api_key: ""     # Bailian API Key
   qwen_model: "qwen3-asr-flash-realtime"
   qwen_language: "zh"
   qwen_enable_vad: true
@@ -427,7 +449,7 @@ dictionary:
   path: "dictionary.txt"  # relative to ~/.koe/
 
 hotkey:
-  # 触发键：fn | left_option | right_option | left_command | right_command
+  # Trigger key: fn | left_option | right_option | left_command | right_command
   trigger_key: "fn"
 "#;
 
@@ -470,3 +492,24 @@ User dictionary:
 {{dictionary_entries}}
 
 Output the corrected text only.";
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn ui_language_defaults_to_en() {
+        let cfg = Config::default();
+        assert_eq!(cfg.ui.language, "en");
+    }
+
+    #[test]
+    fn ui_language_can_be_set_to_zh() {
+        let yaml = r#"
+ui:
+  language: "zh"
+"#;
+        let cfg: Config = serde_yaml::from_str(yaml).expect("parse config");
+        assert_eq!(cfg.ui.language, "zh");
+    }
+}

@@ -2,9 +2,11 @@
 #import "SPPermissionManager.h"
 #import "SPAudioDeviceManager.h"
 #import "SPHistoryManager.h"
+#import "SPLocalization.h"
 #import <Cocoa/Cocoa.h>
 #import <ServiceManagement/ServiceManagement.h>
 #import <UserNotifications/UserNotifications.h>
+#define L(KEY) [SPLocalization tr:(KEY)]
 
 // Icon size for menu bar (points)
 static const CGFloat kIconSize = 18.0;
@@ -24,6 +26,13 @@ static const CGFloat kIconSize = 18.0;
 @property (nonatomic, strong) NSMenuItem *statsCountItem;
 @property (nonatomic, strong) NSMenuItem *statsTimeItem;
 @property (nonatomic, strong) NSMenuItem *statsSpeedItem;
+@property (nonatomic, strong) NSMenuItem *statsHeaderItem;
+@property (nonatomic, strong) NSMenuItem *permissionsHeaderItem;
+@property (nonatomic, strong) NSMenuItem *microphoneMenuItem;
+@property (nonatomic, strong) NSMenuItem *setupWizardMenuItem;
+@property (nonatomic, strong) NSMenuItem *openConfigMenuItem;
+@property (nonatomic, strong) NSMenuItem *launchAtLoginMenuItem;
+@property (nonatomic, strong) NSMenuItem *quitMenuItem;
 @property (nonatomic, strong) NSTimer *animationTimer;
 @property (nonatomic, assign) NSInteger animationFrame;
 @property (nonatomic, copy) NSString *currentState;
@@ -58,13 +67,13 @@ static const CGFloat kIconSize = 18.0;
     menu.autoenablesItems = NO;
 
     // Status display
-    self.statusMenuItem = [[NSMenuItem alloc] initWithTitle:@"Ready"
+    self.statusMenuItem = [[NSMenuItem alloc] initWithTitle:L(@"status.ready")
                                                     action:nil
                                              keyEquivalent:@""];
     self.statusMenuItem.enabled = NO;
     [menu addItem:self.statusMenuItem];
 
-    self.hotkeyDisplayItem = [[NSMenuItem alloc] initWithTitle:@"Hotkey: Fn"
+    self.hotkeyDisplayItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:L(@"status.hotkey_prefix_format"), [SPLocalization displayNameForTriggerKey:@"fn"]]
                                                         action:nil
                                                  keyEquivalent:@""];
     self.hotkeyDisplayItem.enabled = NO;
@@ -73,9 +82,9 @@ static const CGFloat kIconSize = 18.0;
     [menu addItem:[NSMenuItem separatorItem]];
 
     // Statistics section
-    NSMenuItem *statsHeader = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
-    statsHeader.view = [self headerViewWithTitle:@"Statistics"];
-    [menu addItem:statsHeader];
+    self.statsHeaderItem = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
+    self.statsHeaderItem.view = [self headerViewWithTitle:L(@"status.header.statistics")];
+    [menu addItem:self.statsHeaderItem];
 
     self.statsCountItem = [[NSMenuItem alloc] initWithTitle:@"  ..."
                                                     action:nil
@@ -98,29 +107,29 @@ static const CGFloat kIconSize = 18.0;
     [menu addItem:[NSMenuItem separatorItem]];
 
     // Permissions section
-    NSMenuItem *permHeader = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
-    permHeader.view = [self headerViewWithTitle:@"Permissions"];
-    [menu addItem:permHeader];
+    self.permissionsHeaderItem = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
+    self.permissionsHeaderItem.view = [self headerViewWithTitle:L(@"status.header.permissions")];
+    [menu addItem:self.permissionsHeaderItem];
 
-    self.micPermissionItem = [[NSMenuItem alloc] initWithTitle:@"  Microphone: Checking..."
+    self.micPermissionItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:L(@"status.permissions.microphone_format"), L(@"status.permissions.checking")]
                                                        action:nil
                                                 keyEquivalent:@""];
     self.micPermissionItem.enabled = NO;
     [menu addItem:self.micPermissionItem];
 
-    self.accessibilityPermissionItem = [[NSMenuItem alloc] initWithTitle:@"  Accessibility: Checking..."
+    self.accessibilityPermissionItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:L(@"status.permissions.accessibility_format"), L(@"status.permissions.checking")]
                                                                  action:nil
                                                           keyEquivalent:@""];
     self.accessibilityPermissionItem.enabled = NO;
     [menu addItem:self.accessibilityPermissionItem];
 
-    self.inputMonitoringPermissionItem = [[NSMenuItem alloc] initWithTitle:@"  Input Monitoring: Checking..."
+    self.inputMonitoringPermissionItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:L(@"status.permissions.input_monitoring_format"), L(@"status.permissions.checking")]
                                                                    action:nil
                                                             keyEquivalent:@""];
     self.inputMonitoringPermissionItem.enabled = NO;
     [menu addItem:self.inputMonitoringPermissionItem];
 
-    self.notificationPermissionItem = [[NSMenuItem alloc] initWithTitle:@"  Notifications: Checking..."
+    self.notificationPermissionItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:L(@"status.permissions.notifications_format"), L(@"status.permissions.checking")]
                                                                 action:nil
                                                          keyEquivalent:@""];
     self.notificationPermissionItem.enabled = NO;
@@ -129,46 +138,46 @@ static const CGFloat kIconSize = 18.0;
     [menu addItem:[NSMenuItem separatorItem]];
 
     // Microphone selection submenu
-    NSMenuItem *microphoneItem = [[NSMenuItem alloc] initWithTitle:@"Microphone"
+    self.microphoneMenuItem = [[NSMenuItem alloc] initWithTitle:L(@"status.menu.microphone")
                                                            action:nil
                                                     keyEquivalent:@""];
-    NSMenu *micSubmenu = [[NSMenu alloc] initWithTitle:@"Microphone"];
-    microphoneItem.submenu = micSubmenu;
-    [menu addItem:microphoneItem];
+    NSMenu *micSubmenu = [[NSMenu alloc] initWithTitle:L(@"status.menu.microphone")];
+    self.microphoneMenuItem.submenu = micSubmenu;
+    [menu addItem:self.microphoneMenuItem];
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *setupWizard = [[NSMenuItem alloc] initWithTitle:@"Setup Wizard..."
+    self.setupWizardMenuItem = [[NSMenuItem alloc] initWithTitle:L(@"status.menu.setup_wizard")
                                                         action:@selector(openSetupWizard:)
                                                  keyEquivalent:@","];
-    setupWizard.target = self;
-    [menu addItem:setupWizard];
+    self.setupWizardMenuItem.target = self;
+    [menu addItem:self.setupWizardMenuItem];
 
-    NSMenuItem *openConfig = [[NSMenuItem alloc] initWithTitle:@"Open Config Folder..."
+    self.openConfigMenuItem = [[NSMenuItem alloc] initWithTitle:L(@"status.menu.open_config")
                                                        action:@selector(openConfigFolder:)
                                                 keyEquivalent:@""];
-    openConfig.target = self;
-    [menu addItem:openConfig];
+    self.openConfigMenuItem.target = self;
+    [menu addItem:self.openConfigMenuItem];
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *loginItem = [[NSMenuItem alloc] initWithTitle:@"Launch at Login"
+    self.launchAtLoginMenuItem = [[NSMenuItem alloc] initWithTitle:L(@"status.menu.launch_at_login")
                                                       action:@selector(toggleLaunchAtLogin:)
                                                keyEquivalent:@""];
-    loginItem.target = self;
+    self.launchAtLoginMenuItem.target = self;
     if (@available(macOS 13.0, *)) {
-        loginItem.state = (SMAppService.mainAppService.status == SMAppServiceStatusEnabled)
+        self.launchAtLoginMenuItem.state = (SMAppService.mainAppService.status == SMAppServiceStatusEnabled)
                           ? NSControlStateValueOn : NSControlStateValueOff;
     }
-    [menu addItem:loginItem];
+    [menu addItem:self.launchAtLoginMenuItem];
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *quit = [[NSMenuItem alloc] initWithTitle:@"Quit Koe"
+    self.quitMenuItem = [[NSMenuItem alloc] initWithTitle:L(@"status.menu.quit")
                                                  action:@selector(quitApp:)
                                           keyEquivalent:@"q"];
-    quit.target = self;
-    [menu addItem:quit];
+    self.quitMenuItem.target = self;
+    [menu addItem:self.quitMenuItem];
 
     self.statusItem.menu = menu;
 }
@@ -176,6 +185,7 @@ static const CGFloat kIconSize = 18.0;
 #pragma mark - NSMenuDelegate
 
 - (void)menuWillOpen:(NSMenu *)menu {
+    [self refreshLocalizedStaticText];
     [self refreshHotkeyDisplay];
     [self refreshPermissionStatus];
     [self refreshStats];
@@ -196,16 +206,17 @@ static const CGFloat kIconSize = 18.0;
     BOOL accessibility = [self.permissionManager isAccessibilityGranted];
     BOOL inputMonitoring = [self.permissionManager isInputMonitoringGranted];
 
-    self.micPermissionItem.title = [NSString stringWithFormat:@"  Microphone: %@",
-                                    mic ? @"Granted" : @"Not Granted"];
-    self.accessibilityPermissionItem.title = [NSString stringWithFormat:@"  Accessibility: %@",
-                                              accessibility ? @"Granted" : @"Not Granted"];
-    self.inputMonitoringPermissionItem.title = [NSString stringWithFormat:@"  Input Monitoring: %@",
-                                                inputMonitoring ? @"Granted" : @"Not Granted"];
+    NSString *micState = mic ? L(@"status.permissions.granted") : L(@"status.permissions.not_granted");
+    NSString *accState = accessibility ? L(@"status.permissions.granted") : L(@"status.permissions.not_granted");
+    NSString *inputState = inputMonitoring ? L(@"status.permissions.granted") : L(@"status.permissions.not_granted");
+
+    self.micPermissionItem.title = [NSString stringWithFormat:L(@"status.permissions.microphone_format"), micState];
+    self.accessibilityPermissionItem.title = [NSString stringWithFormat:L(@"status.permissions.accessibility_format"), accState];
+    self.inputMonitoringPermissionItem.title = [NSString stringWithFormat:L(@"status.permissions.input_monitoring_format"), inputState];
 
     [self.permissionManager checkNotificationPermissionWithCompletion:^(BOOL granted) {
-        self.notificationPermissionItem.title = [NSString stringWithFormat:@"  Notifications: %@",
-                                                  granted ? @"Granted" : @"Not Granted"];
+        NSString *notificationState = granted ? L(@"status.permissions.granted") : L(@"status.permissions.not_granted");
+        self.notificationPermissionItem.title = [NSString stringWithFormat:L(@"status.permissions.notifications_format"), notificationState];
     }];
 }
 
@@ -215,16 +226,16 @@ static const CGFloat kIconSize = 18.0;
     // Count display
     NSMutableArray *parts = [NSMutableArray array];
     if (stats.totalCharCount > 0) {
-        [parts addObject:[NSString stringWithFormat:@"%ld chars", (long)stats.totalCharCount]];
+        [parts addObject:[NSString stringWithFormat:L(@"status.stats.chars_format"), (long)stats.totalCharCount]];
     }
     if (stats.totalWordCount > 0) {
-        [parts addObject:[NSString stringWithFormat:@"%ld words", (long)stats.totalWordCount]];
+        [parts addObject:[NSString stringWithFormat:L(@"status.stats.words_format"), (long)stats.totalWordCount]];
     }
     if (parts.count > 0) {
-        self.statsCountItem.title = [NSString stringWithFormat:@"  Total: %@",
+        self.statsCountItem.title = [NSString stringWithFormat:L(@"status.stats.total_format"),
                                      [parts componentsJoinedByString:@" / "]];
     } else {
-        self.statsCountItem.title = @"  Total: No data yet";
+        self.statsCountItem.title = [NSString stringWithFormat:L(@"status.stats.total_format"), L(@"status.stats.total_no_data")];
     }
 
     // Time + session count
@@ -232,10 +243,10 @@ static const CGFloat kIconSize = 18.0;
     NSInteger min = totalSec / 60;
     NSInteger sec = totalSec % 60;
     if (stats.sessionCount > 0) {
-        self.statsTimeItem.title = [NSString stringWithFormat:@"  Time: %ld min %ld sec | %ld sessions",
+        self.statsTimeItem.title = [NSString stringWithFormat:L(@"status.stats.time_format"),
                                     (long)min, (long)sec, (long)stats.sessionCount];
     } else {
-        self.statsTimeItem.title = @"  Time: --";
+        self.statsTimeItem.title = L(@"status.stats.time_empty");
     }
 
     // Typing speed
@@ -244,14 +255,14 @@ static const CGFloat kIconSize = 18.0;
         if (stats.totalCharCount > stats.totalWordCount) {
             // Primarily Chinese
             double speed = (double)stats.totalCharCount / minutes;
-            self.statsSpeedItem.title = [NSString stringWithFormat:@"  Speed: %.0f chars/min", speed];
+            self.statsSpeedItem.title = [NSString stringWithFormat:L(@"status.stats.speed_chars"), speed];
         } else {
             // Primarily English
             double speed = (double)stats.totalWordCount / minutes;
-            self.statsSpeedItem.title = [NSString stringWithFormat:@"  Speed: %.0f words/min", speed];
+            self.statsSpeedItem.title = [NSString stringWithFormat:L(@"status.stats.speed_words"), speed];
         }
     } else {
-        self.statsSpeedItem.title = @"  Speed: --";
+        self.statsSpeedItem.title = L(@"status.stats.speed_empty");
     }
 }
 
@@ -285,30 +296,16 @@ static const CGFloat kIconSize = 18.0;
     }
 
     // Map config value to display name
-    NSString *displayName;
-    if ([triggerKey isEqualToString:@"left_option"]) {
-        displayName = @"Left Option (⌥)";
-    } else if ([triggerKey isEqualToString:@"right_option"]) {
-        displayName = @"Right Option (⌥)";
-    } else if ([triggerKey isEqualToString:@"left_command"]) {
-        displayName = @"Left Command (⌘)";
-    } else if ([triggerKey isEqualToString:@"right_command"]) {
-        displayName = @"Right Command (⌘)";
-    } else {
-        displayName = @"Fn (Globe)";
-    }
-
-    self.hotkeyDisplayItem.title = [NSString stringWithFormat:@"Hotkey: %@", displayName];
+    NSString *displayName = [SPLocalization displayNameForTriggerKey:triggerKey];
+    self.hotkeyDisplayItem.title = [NSString stringWithFormat:L(@"status.hotkey_prefix_format"), displayName];
 }
 
 #pragma mark - Microphone Selection
 
 - (void)refreshMicrophoneSubmenu:(NSMenu *)menu {
-    // Find the Microphone menu item
-    NSInteger micIndex = [menu indexOfItemWithTitle:@"Microphone"];
-    if (micIndex == -1) return;
-
-    NSMenu *submenu = [menu itemAtIndex:micIndex].submenu;
+    (void)menu;
+    NSMenu *submenu = self.microphoneMenuItem.submenu;
+    if (!submenu) return;
     [submenu removeAllItems];
 
     NSString *selectedUID = self.audioDeviceManager.selectedDeviceUID;
@@ -326,7 +323,7 @@ static const CGFloat kIconSize = 18.0;
     }
 
     // "System Default" option
-    NSMenuItem *defaultItem = [[NSMenuItem alloc] initWithTitle:@"System Default"
+    NSMenuItem *defaultItem = [[NSMenuItem alloc] initWithTitle:L(@"status.menu.system_default")
                                                         action:@selector(selectAudioDevice:)
                                                  keyEquivalent:@""];
     defaultItem.target = self;
@@ -356,7 +353,7 @@ static const CGFloat kIconSize = 18.0;
     if (selectedUID && !selectedFound) {
         NSString *deviceName = self.audioDeviceManager.selectedDeviceName ?: selectedUID;
         [submenu addItem:[NSMenuItem separatorItem]];
-        NSMenuItem *unavailableItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:@"%@ (Unavailable)", deviceName]
+        NSMenuItem *unavailableItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:L(@"status.menu.unavailable_format"), deviceName]
                                                                 action:nil
                                                          keyEquivalent:@""];
         unavailableItem.state = NSControlStateValueOn;
@@ -538,37 +535,49 @@ static const CGFloat kIconSize = 18.0;
     [self stopAnimation];
 
     if ([state isEqualToString:@"idle"] || [state isEqualToString:@"completed"]) {
-        self.statusMenuItem.title = @"Ready";
+        self.statusMenuItem.title = L(@"status.ready");
         [self applyIdleIcon];
 
     } else if ([state hasPrefix:@"recording"]) {
-        self.statusMenuItem.title = @"Listening...";
+        self.statusMenuItem.title = L(@"status.listening");
         [self startRecordingAnimation];
 
     } else if ([state isEqualToString:@"connecting_asr"]) {
-        self.statusMenuItem.title = @"Connecting...";
+        self.statusMenuItem.title = L(@"status.connecting");
         [self startProcessingAnimation];
 
     } else if ([state isEqualToString:@"finalizing_asr"]) {
-        self.statusMenuItem.title = @"Recognizing...";
+        self.statusMenuItem.title = L(@"status.recognizing");
         [self startProcessingAnimation];
 
     } else if ([state isEqualToString:@"correcting"]) {
-        self.statusMenuItem.title = @"Thinking...";
+        self.statusMenuItem.title = L(@"status.thinking");
         [self startProcessingAnimation];
 
     } else if ([state hasPrefix:@"preparing_paste"] || [state isEqualToString:@"pasting"]) {
-        self.statusMenuItem.title = @"Pasting...";
+        self.statusMenuItem.title = L(@"status.pasting");
         [self applyPasteIcon];
 
     } else if ([state isEqualToString:@"error"] || [state isEqualToString:@"failed"]) {
-        self.statusMenuItem.title = @"Error";
+        self.statusMenuItem.title = L(@"status.error");
         [self applyErrorIcon];
 
     } else {
-        self.statusMenuItem.title = @"Working...";
+        self.statusMenuItem.title = L(@"status.working");
         [self startProcessingAnimation];
     }
+}
+
+- (void)refreshLocalizedStaticText {
+    self.statsHeaderItem.view = [self headerViewWithTitle:L(@"status.header.statistics")];
+    self.permissionsHeaderItem.view = [self headerViewWithTitle:L(@"status.header.permissions")];
+    self.microphoneMenuItem.title = L(@"status.menu.microphone");
+    self.microphoneMenuItem.submenu.title = L(@"status.menu.microphone");
+    self.setupWizardMenuItem.title = L(@"status.menu.setup_wizard");
+    self.openConfigMenuItem.title = L(@"status.menu.open_config");
+    self.launchAtLoginMenuItem.title = L(@"status.menu.launch_at_login");
+    self.quitMenuItem.title = L(@"status.menu.quit");
+    [self updateState:self.currentState];
 }
 
 #pragma mark - Animations

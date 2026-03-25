@@ -1,10 +1,12 @@
 #import "SPSetupWizardWindowController.h"
+#import "SPLocalization.h"
 #import <Cocoa/Cocoa.h>
 
 static NSString *const kConfigDir = @".koe";
 static NSString *const kConfigFile = @"config.yaml";
 static NSString *const kDictionaryFile = @"dictionary.txt";
 static NSString *const kSystemPromptFile = @"system_prompt.txt";
+#define L(KEY) [SPLocalization tr:(KEY)]
 
 // ─── YAML helpers (minimal, line-based) ─────────────────────────────
 // We parse/write the config.yaml with simple line-based logic to avoid
@@ -185,6 +187,9 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
 @interface SPSetupWizardWindowController ()
 
+// General fields
+@property (nonatomic, strong) NSPopUpButton *uiLanguagePopup;
+
 // ASR fields
 @property (nonatomic, strong) NSPopUpButton *asrProviderPopup;
 @property (nonatomic, strong) NSTextField *asrAppKeyField;
@@ -220,7 +225,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
                   styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
                     backing:NSBackingStoreBuffered
                       defer:YES];
-    window.title = @"Koe Setup Wizard";
+    window.title = L(@"wizard.window_title");
     window.minSize = NSMakeSize(520, 420);
 
     self = [super initWithWindow:window];
@@ -247,6 +252,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     self.tabView = [[NSTabView alloc] initWithFrame:NSMakeRect(16, 56, 548, 408)];
     self.tabView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
+    [self.tabView addTabViewItem:[self buildGeneralTab]];
     [self.tabView addTabViewItem:[self buildAsrTab]];
     [self.tabView addTabViewItem:[self buildLlmTab]];
     [self.tabView addTabViewItem:[self buildHotkeyTab]];
@@ -256,7 +262,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     [content addSubview:self.tabView];
 
     // Save button
-    NSButton *saveButton = [NSButton buttonWithTitle:@"Save" target:self action:@selector(saveConfig:)];
+    NSButton *saveButton = [NSButton buttonWithTitle:L(@"wizard.button.save") target:self action:@selector(saveConfig:)];
     saveButton.bezelStyle = NSBezelStyleRounded;
     saveButton.keyEquivalent = @"\r";  // Enter key
     saveButton.frame = NSMakeRect(480, 14, 80, 32);
@@ -264,7 +270,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     [content addSubview:saveButton];
 
     // Cancel button
-    NSButton *cancelButton = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancelSetup:)];
+    NSButton *cancelButton = [NSButton buttonWithTitle:L(@"wizard.button.cancel") target:self action:@selector(cancelSetup:)];
     cancelButton.bezelStyle = NSBezelStyleRounded;
     cancelButton.keyEquivalent = @"\033";  // Escape key
     cancelButton.frame = NSMakeRect(392, 14, 80, 32);
@@ -272,9 +278,35 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     [content addSubview:cancelButton];
 }
 
+- (NSTabViewItem *)buildGeneralTab {
+    NSTabViewItem *tab = [[NSTabViewItem alloc] initWithIdentifier:@"general"];
+    tab.label = L(@"wizard.tab.general");
+
+    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 520, 360)];
+
+    CGFloat y = 310;
+    CGFloat labelW = 120;
+    CGFloat fieldX = 136;
+
+    NSTextField *desc = [self descriptionLabel:L(@"wizard.general.description")];
+    desc.frame = NSMakeRect(16, y - 10, 500, 40);
+    [view addSubview:desc];
+    y -= 60;
+
+    [view addSubview:[self labelWithTitle:L(@"wizard.general.language_label") frame:NSMakeRect(16, y, labelW, 22)]];
+    self.uiLanguagePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(fieldX, y - 2, 220, 26) pullsDown:NO];
+    [self.uiLanguagePopup addItemsWithTitles:@[L(@"wizard.lang.english"), L(@"wizard.lang.chinese")]];
+    [self.uiLanguagePopup itemAtIndex:0].representedObject = @"en";
+    [self.uiLanguagePopup itemAtIndex:1].representedObject = @"zh";
+    [view addSubview:self.uiLanguagePopup];
+
+    tab.view = view;
+    return tab;
+}
+
 - (NSTabViewItem *)buildAsrTab {
     NSTabViewItem *tab = [[NSTabViewItem alloc] initWithIdentifier:@"asr"];
-    tab.label = @"ASR";
+    tab.label = L(@"wizard.tab.asr");
 
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 520, 360)];
 
@@ -284,13 +316,13 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     CGFloat fieldW = 360;
 
     // Description
-    NSTextField *desc = [self descriptionLabel:@"Configure realtime ASR provider.\nDoubao requires 火山引擎 App/Access key. Qwen requires 百炼 API Key."];
+    NSTextField *desc = [self descriptionLabel:L(@"wizard.asr.description")];
     desc.frame = NSMakeRect(16, y - 10, 500, 48);
     [view addSubview:desc];
     y -= 70;
 
     // Provider
-    [view addSubview:[self labelWithTitle:@"Provider:" frame:NSMakeRect(16, y, labelW, 22)]];
+    [view addSubview:[self labelWithTitle:L(@"wizard.asr.provider_label") frame:NSMakeRect(16, y, labelW, 22)]];
     self.asrProviderPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(fieldX, y - 2, 220, 26) pullsDown:NO];
     [self.asrProviderPopup addItemsWithTitles:@[@"Doubao", @"Qwen"]];
     [self.asrProviderPopup itemAtIndex:0].representedObject = @"doubao";
@@ -301,20 +333,20 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     y -= 36;
 
     // Doubao App Key
-    [view addSubview:[self labelWithTitle:@"App Key:" frame:NSMakeRect(16, y, labelW, 22)]];
-    self.asrAppKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"火山引擎 App ID"];
+    [view addSubview:[self labelWithTitle:L(@"wizard.asr.app_key_label") frame:NSMakeRect(16, y, labelW, 22)]];
+    self.asrAppKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:L(@"wizard.asr.placeholder.app_key")];
     [view addSubview:self.asrAppKeyField];
     y -= 36;
 
     // Doubao Access Key
-    [view addSubview:[self labelWithTitle:@"Access Key:" frame:NSMakeRect(16, y, labelW, 22)]];
-    self.asrAccessKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"火山引擎 Access Token"];
+    [view addSubview:[self labelWithTitle:L(@"wizard.asr.access_key_label") frame:NSMakeRect(16, y, labelW, 22)]];
+    self.asrAccessKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:L(@"wizard.asr.placeholder.access_key")];
     [view addSubview:self.asrAccessKeyField];
     y -= 36;
 
     // Qwen API Key
-    [view addSubview:[self labelWithTitle:@"Qwen API Key:" frame:NSMakeRect(16, y, labelW, 22)]];
-    self.qwenApiKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"sk-... (百炼 API Key)"];
+    [view addSubview:[self labelWithTitle:L(@"wizard.asr.qwen_api_key_label") frame:NSMakeRect(16, y, labelW, 22)]];
+    self.qwenApiKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:L(@"wizard.asr.placeholder.qwen_api_key")];
     [view addSubview:self.qwenApiKeyField];
 
     tab.view = view;
@@ -323,7 +355,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
 - (NSTabViewItem *)buildLlmTab {
     NSTabViewItem *tab = [[NSTabViewItem alloc] initWithIdentifier:@"llm"];
-    tab.label = @"LLM";
+    tab.label = L(@"wizard.tab.llm");
 
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 520, 360)];
 
@@ -333,13 +365,13 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     CGFloat fieldW = 360;
 
     // Description
-    NSTextField *desc = [self descriptionLabel:@"Configure the LLM for post-correction of ASR output. Any OpenAI-compatible API works.\n\nIf disabled or not configured, Koe will directly use the raw ASR result — faster but less accurate (no capitalization fix, spacing normalization, or dictionary correction). If the configuration is invalid, Koe will automatically fallback to the raw ASR result."];
+    NSTextField *desc = [self descriptionLabel:L(@"wizard.llm.description")];
     desc.frame = NSMakeRect(16, y - 30, 500, 80);
     [view addSubview:desc];
     y -= 100;
 
     // Enabled toggle
-    self.llmEnabledCheckbox = [NSButton checkboxWithTitle:@"Enable LLM Correction"
+    self.llmEnabledCheckbox = [NSButton checkboxWithTitle:L(@"wizard.llm.enable")
                                                    target:self
                                                    action:@selector(llmEnabledToggled:)];
     self.llmEnabledCheckbox.frame = NSMakeRect(16, y, 300, 22);
@@ -347,25 +379,25 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     y -= 36;
 
     // Base URL
-    [view addSubview:[self labelWithTitle:@"Base URL:" frame:NSMakeRect(16, y, labelW, 22)]];
+    [view addSubview:[self labelWithTitle:L(@"wizard.llm.base_url_label") frame:NSMakeRect(16, y, labelW, 22)]];
     self.llmBaseUrlField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"https://api.openai.com/v1"];
     [view addSubview:self.llmBaseUrlField];
     y -= 36;
 
     // API Key
-    [view addSubview:[self labelWithTitle:@"API Key:" frame:NSMakeRect(16, y, labelW, 22)]];
+    [view addSubview:[self labelWithTitle:L(@"wizard.llm.api_key_label") frame:NSMakeRect(16, y, labelW, 22)]];
     self.llmApiKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"sk-..."];
     [view addSubview:self.llmApiKeyField];
     y -= 36;
 
     // Model
-    [view addSubview:[self labelWithTitle:@"Model:" frame:NSMakeRect(16, y, labelW, 22)]];
+    [view addSubview:[self labelWithTitle:L(@"wizard.llm.model_label") frame:NSMakeRect(16, y, labelW, 22)]];
     self.llmModelField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"gpt-4o-mini"];
     [view addSubview:self.llmModelField];
     y -= 42;
 
     // Test connection button + result label
-    self.llmTestButton = [NSButton buttonWithTitle:@"Test Connection" target:self action:@selector(testLlmConnection:)];
+    self.llmTestButton = [NSButton buttonWithTitle:L(@"wizard.llm.test_connection") target:self action:@selector(testLlmConnection:)];
     self.llmTestButton.bezelStyle = NSBezelStyleRounded;
     self.llmTestButton.frame = NSMakeRect(fieldX, y, 130, 28);
     [view addSubview:self.llmTestButton];
@@ -382,26 +414,26 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
 - (NSTabViewItem *)buildHotkeyTab {
     NSTabViewItem *tab = [[NSTabViewItem alloc] initWithIdentifier:@"hotkey"];
-    tab.label = @"Hotkey";
+    tab.label = L(@"wizard.tab.hotkey");
 
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 520, 360)];
 
     CGFloat y = 310;
 
-    NSTextField *desc = [self descriptionLabel:@"Choose which key triggers voice input.\nHold the key to record, release to stop. Or double-press to toggle."];
+    NSTextField *desc = [self descriptionLabel:L(@"wizard.hotkey.description")];
     desc.frame = NSMakeRect(16, y - 10, 500, 48);
     [view addSubview:desc];
     y -= 70;
 
-    [view addSubview:[self labelWithTitle:@"Trigger Key:" frame:NSMakeRect(16, y, 120, 22)]];
+    [view addSubview:[self labelWithTitle:L(@"wizard.hotkey.trigger_key_label") frame:NSMakeRect(16, y, 120, 22)]];
 
     self.hotkeyPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(136, y - 2, 220, 26) pullsDown:NO];
     [self.hotkeyPopup addItemsWithTitles:@[
-        @"Fn (Globe)",
-        @"Left Option (⌥)",
-        @"Right Option (⌥)",
-        @"Left Command (⌘)",
-        @"Right Command (⌘)",
+        [SPLocalization tr:@"hotkey.fn_globe"],
+        [SPLocalization tr:@"hotkey.left_option"],
+        [SPLocalization tr:@"hotkey.right_option"],
+        [SPLocalization tr:@"hotkey.left_command"],
+        [SPLocalization tr:@"hotkey.right_command"],
     ]];
     // Tag each item with its config value for easy lookup
     [self.hotkeyPopup itemAtIndex:0].representedObject = @"fn";
@@ -417,11 +449,11 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
 - (NSTabViewItem *)buildDictionaryTab {
     NSTabViewItem *tab = [[NSTabViewItem alloc] initWithIdentifier:@"dictionary"];
-    tab.label = @"Dictionary";
+    tab.label = L(@"wizard.tab.dictionary");
 
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 520, 360)];
 
-    NSTextField *desc = [self descriptionLabel:@"User dictionary — one term per line. These terms are prioritized during LLM correction.\nLines starting with # are comments."];
+    NSTextField *desc = [self descriptionLabel:L(@"wizard.dictionary.description")];
     desc.frame = NSMakeRect(16, 310, 500, 40);
     [view addSubview:desc];
 
@@ -450,11 +482,11 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
 - (NSTabViewItem *)buildSystemPromptTab {
     NSTabViewItem *tab = [[NSTabViewItem alloc] initWithIdentifier:@"system_prompt"];
-    tab.label = @"System Prompt";
+    tab.label = L(@"wizard.tab.system_prompt");
 
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 520, 360)];
 
-    NSTextField *desc = [self descriptionLabel:@"System prompt sent to the LLM for text correction.\nEdit to customize the LLM's behavior."];
+    NSTextField *desc = [self descriptionLabel:L(@"wizard.system_prompt.description")];
     desc.frame = NSMakeRect(16, 310, 500, 40);
     [view addSubview:desc];
 
@@ -516,6 +548,16 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     NSString *configPath = configFilePath();
     NSString *yaml = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:nil] ?: @"";
 
+    // UI language
+    NSString *uiLanguage = yamlRead(yaml, @"ui.language");
+    if (uiLanguage.length == 0) uiLanguage = @"en";
+    for (NSInteger i = 0; i < self.uiLanguagePopup.numberOfItems; i++) {
+        if ([[self.uiLanguagePopup itemAtIndex:i].representedObject isEqualToString:uiLanguage]) {
+            [self.uiLanguagePopup selectItemAtIndex:i];
+            break;
+        }
+    }
+
     // ASR
     NSString *asrProvider = yamlRead(yaml, @"asr.provider");
     if (asrProvider.length == 0) asrProvider = @"doubao";
@@ -576,6 +618,10 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     NSString *configPath = configFilePath();
     NSString *yaml = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:nil] ?: @"";
 
+    // Update UI language
+    NSString *selectedLanguage = self.uiLanguagePopup.selectedItem.representedObject ?: @"en";
+    yaml = yamlWrite(yaml, @"ui.language", selectedLanguage);
+
     // Update ASR fields
     NSString *selectedAsrProvider = self.asrProviderPopup.selectedItem.representedObject ?: @"doubao";
     yaml = yamlWrite(yaml, @"asr.provider", selectedAsrProvider);
@@ -599,7 +645,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     [yaml writeToFile:configPath atomically:YES encoding:NSUTF8StringEncoding error:&error];
     if (error) {
         NSLog(@"[Koe] Failed to write config.yaml: %@", error.localizedDescription);
-        [self showAlert:@"Failed to save config.yaml" info:error.localizedDescription];
+        [self showAlert:L(@"wizard.error.save_config") info:error.localizedDescription];
         return;
     }
 
@@ -608,7 +654,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     [self.dictionaryTextView.string writeToFile:dictPath atomically:YES encoding:NSUTF8StringEncoding error:&error];
     if (error) {
         NSLog(@"[Koe] Failed to write dictionary.txt: %@", error.localizedDescription);
-        [self showAlert:@"Failed to save dictionary.txt" info:error.localizedDescription];
+        [self showAlert:L(@"wizard.error.save_dictionary") info:error.localizedDescription];
         return;
     }
 
@@ -617,7 +663,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     [self.systemPromptTextView.string writeToFile:promptPath atomically:YES encoding:NSUTF8StringEncoding error:&error];
     if (error) {
         NSLog(@"[Koe] Failed to write system_prompt.txt: %@", error.localizedDescription);
-        [self showAlert:@"Failed to save system_prompt.txt" info:error.localizedDescription];
+        [self showAlert:L(@"wizard.error.save_prompt") info:error.localizedDescription];
         return;
     }
 
@@ -665,13 +711,13 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     NSString *model = self.llmModelField.stringValue;
 
     if (baseUrl.length == 0 || apiKey.length == 0 || model.length == 0) {
-        self.llmTestResultLabel.stringValue = @"Please fill in all fields first.";
+        self.llmTestResultLabel.stringValue = L(@"wizard.llm.fill_all_fields");
         self.llmTestResultLabel.textColor = [NSColor systemOrangeColor];
         return;
     }
 
     self.llmTestButton.enabled = NO;
-    self.llmTestResultLabel.stringValue = @"Testing...";
+    self.llmTestResultLabel.stringValue = L(@"wizard.llm.testing");
     self.llmTestResultLabel.textColor = [NSColor secondaryLabelColor];
 
     // Build the chat completions request
@@ -679,7 +725,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     endpoint = [endpoint stringByAppendingString:@"/chat/completions"];
     NSURL *url = [NSURL URLWithString:endpoint];
     if (!url) {
-        self.llmTestResultLabel.stringValue = @"Invalid Base URL.";
+        self.llmTestResultLabel.stringValue = L(@"wizard.llm.invalid_base_url");
         self.llmTestResultLabel.textColor = [NSColor systemRedColor];
         self.llmTestButton.enabled = YES;
         return;
@@ -712,7 +758,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
             NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
             if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
-                self.llmTestResultLabel.stringValue = @"Connection successful!";
+                self.llmTestResultLabel.stringValue = L(@"wizard.llm.connection_successful");
                 self.llmTestResultLabel.textColor = [NSColor systemGreenColor];
             } else {
                 NSString *body = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"";
@@ -727,9 +773,9 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
                         }
                     }
                 }
-                self.llmTestResultLabel.stringValue = [NSString stringWithFormat:@"HTTP %ld: %@",
+                self.llmTestResultLabel.stringValue = [NSString stringWithFormat:L(@"wizard.llm.http_error_format"),
                     (long)httpResponse.statusCode,
-                    errMsg ?: body ?: @"Unknown error"];
+                    errMsg ?: body ?: L(@"wizard.llm.unknown_error")];
                 self.llmTestResultLabel.textColor = [NSColor systemRedColor];
             }
         });
@@ -742,7 +788,7 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     alert.messageText = message;
     alert.informativeText = info ?: @"";
     alert.alertStyle = NSAlertStyleWarning;
-    [alert addButtonWithTitle:@"OK"];
+    [alert addButtonWithTitle:L(@"wizard.alert.ok")];
     [alert runModal];
 }
 
