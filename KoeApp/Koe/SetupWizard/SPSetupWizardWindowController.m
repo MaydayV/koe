@@ -186,8 +186,10 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 @interface SPSetupWizardWindowController ()
 
 // ASR fields
+@property (nonatomic, strong) NSPopUpButton *asrProviderPopup;
 @property (nonatomic, strong) NSTextField *asrAppKeyField;
 @property (nonatomic, strong) NSTextField *asrAccessKeyField;
+@property (nonatomic, strong) NSTextField *qwenApiKeyField;
 
 // LLM fields
 @property (nonatomic, strong) NSButton *llmEnabledCheckbox;
@@ -282,21 +284,38 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     CGFloat fieldW = 360;
 
     // Description
-    NSTextField *desc = [self descriptionLabel:@"Configure the Doubao (豆包) Streaming ASR service.\nYou need an App Key and Access Key from 火山引擎."];
+    NSTextField *desc = [self descriptionLabel:@"Configure realtime ASR provider.\nDoubao requires 火山引擎 App/Access key. Qwen requires 百炼 API Key."];
     desc.frame = NSMakeRect(16, y - 10, 500, 48);
     [view addSubview:desc];
     y -= 70;
 
-    // App Key
+    // Provider
+    [view addSubview:[self labelWithTitle:@"Provider:" frame:NSMakeRect(16, y, labelW, 22)]];
+    self.asrProviderPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(fieldX, y - 2, 220, 26) pullsDown:NO];
+    [self.asrProviderPopup addItemsWithTitles:@[@"Doubao", @"Qwen"]];
+    [self.asrProviderPopup itemAtIndex:0].representedObject = @"doubao";
+    [self.asrProviderPopup itemAtIndex:1].representedObject = @"qwen";
+    [self.asrProviderPopup setTarget:self];
+    [self.asrProviderPopup setAction:@selector(asrProviderChanged:)];
+    [view addSubview:self.asrProviderPopup];
+    y -= 36;
+
+    // Doubao App Key
     [view addSubview:[self labelWithTitle:@"App Key:" frame:NSMakeRect(16, y, labelW, 22)]];
     self.asrAppKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"火山引擎 App ID"];
     [view addSubview:self.asrAppKeyField];
     y -= 36;
 
-    // Access Key
+    // Doubao Access Key
     [view addSubview:[self labelWithTitle:@"Access Key:" frame:NSMakeRect(16, y, labelW, 22)]];
     self.asrAccessKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"火山引擎 Access Token"];
     [view addSubview:self.asrAccessKeyField];
+    y -= 36;
+
+    // Qwen API Key
+    [view addSubview:[self labelWithTitle:@"Qwen API Key:" frame:NSMakeRect(16, y, labelW, 22)]];
+    self.qwenApiKeyField = [self textField:NSMakeRect(fieldX, y, fieldW, 22) placeholder:@"sk-... (百炼 API Key)"];
+    [view addSubview:self.qwenApiKeyField];
 
     tab.view = view;
     return tab;
@@ -498,8 +517,18 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     NSString *yaml = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:nil] ?: @"";
 
     // ASR
+    NSString *asrProvider = yamlRead(yaml, @"asr.provider");
+    if (asrProvider.length == 0) asrProvider = @"doubao";
+    for (NSInteger i = 0; i < self.asrProviderPopup.numberOfItems; i++) {
+        if ([[self.asrProviderPopup itemAtIndex:i].representedObject isEqualToString:asrProvider]) {
+            [self.asrProviderPopup selectItemAtIndex:i];
+            break;
+        }
+    }
     self.asrAppKeyField.stringValue = yamlRead(yaml, @"asr.app_key");
     self.asrAccessKeyField.stringValue = yamlRead(yaml, @"asr.access_key");
+    self.qwenApiKeyField.stringValue = yamlRead(yaml, @"asr.qwen_api_key");
+    [self updateAsrFieldsEnabled];
 
     // LLM
     NSString *enabled = yamlRead(yaml, @"llm.enabled");
@@ -548,8 +577,11 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
     NSString *yaml = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:nil] ?: @"";
 
     // Update ASR fields
+    NSString *selectedAsrProvider = self.asrProviderPopup.selectedItem.representedObject ?: @"doubao";
+    yaml = yamlWrite(yaml, @"asr.provider", selectedAsrProvider);
     yaml = yamlWrite(yaml, @"asr.app_key", self.asrAppKeyField.stringValue);
     yaml = yamlWrite(yaml, @"asr.access_key", self.asrAccessKeyField.stringValue);
+    yaml = yamlWrite(yaml, @"asr.qwen_api_key", self.qwenApiKeyField.stringValue);
 
     // Update LLM fields
     NSString *enabledStr = (self.llmEnabledCheckbox.state == NSControlStateValueOn) ? @"true" : @"false";
@@ -605,6 +637,18 @@ static NSString *yamlWrite(NSString *yaml, NSString *keyPath, NSString *value) {
 
 - (void)llmEnabledToggled:(id)sender {
     [self updateLlmFieldsEnabled];
+}
+
+- (void)asrProviderChanged:(id)sender {
+    [self updateAsrFieldsEnabled];
+}
+
+- (void)updateAsrFieldsEnabled {
+    NSString *provider = self.asrProviderPopup.selectedItem.representedObject ?: @"doubao";
+    BOOL isDoubao = [provider isEqualToString:@"doubao"];
+    self.asrAppKeyField.enabled = isDoubao;
+    self.asrAccessKeyField.enabled = isDoubao;
+    self.qwenApiKeyField.enabled = !isDoubao;
 }
 
 - (void)updateLlmFieldsEnabled {

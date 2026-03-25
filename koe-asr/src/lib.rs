@@ -43,6 +43,7 @@ pub mod doubao;
 pub mod error;
 pub mod event;
 pub mod provider;
+pub mod qwen;
 pub mod transcript;
 
 pub use config::AsrConfig;
@@ -50,4 +51,5 @@ pub use doubao::DoubaoWsProvider;
 pub use error::AsrError;
 pub use event::AsrEvent;
 pub use provider::AsrProvider;
+pub use qwen::QwenRealtimeWsProvider;
 pub use transcript::TranscriptAggregator;

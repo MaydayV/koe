@@ -19,6 +19,8 @@ pub struct Config {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AsrSection {
+    #[serde(default = "default_asr_provider")]
+    pub provider: String,
     #[serde(default = "default_asr_url")]
     pub url: String,
     #[serde(default)]
@@ -39,6 +41,20 @@ pub struct AsrSection {
     pub enable_punc: bool,
     #[serde(default = "default_true")]
     pub enable_nonstream: bool,
+    #[serde(default = "default_qwen_asr_url")]
+    pub qwen_base_url: String,
+    #[serde(default)]
+    pub qwen_api_key: String,
+    #[serde(default = "default_qwen_asr_model")]
+    pub qwen_model: String,
+    #[serde(default = "default_qwen_language")]
+    pub qwen_language: String,
+    #[serde(default = "default_true")]
+    pub qwen_enable_vad: bool,
+    #[serde(default = "default_qwen_vad_threshold")]
+    pub qwen_vad_threshold: f64,
+    #[serde(default = "default_qwen_vad_silence_duration")]
+    pub qwen_vad_silence_duration_ms: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -117,30 +133,30 @@ impl HotkeySection {
     pub fn resolve(&self) -> HotkeyParams {
         match self.trigger_key.as_str() {
             "left_option" => HotkeyParams {
-                key_code: 58,       // kVK_Option
+                key_code: 58, // kVK_Option
                 alt_key_code: 0,
-                modifier_flag: 0x00080000,  // NSEventModifierFlagOption
+                modifier_flag: 0x00080000, // NSEventModifierFlagOption
             },
             "right_option" => HotkeyParams {
-                key_code: 61,       // kVK_RightOption
+                key_code: 61, // kVK_RightOption
                 alt_key_code: 0,
-                modifier_flag: 0x00080000,  // NSEventModifierFlagOption
+                modifier_flag: 0x00080000, // NSEventModifierFlagOption
             },
             "left_command" => HotkeyParams {
-                key_code: 55,       // kVK_Command
+                key_code: 55, // kVK_Command
                 alt_key_code: 0,
-                modifier_flag: 0x00100000,  // NSEventModifierFlagCommand
+                modifier_flag: 0x00100000, // NSEventModifierFlagCommand
             },
             "right_command" => HotkeyParams {
-                key_code: 54,       // kVK_RightCommand
+                key_code: 54, // kVK_RightCommand
                 alt_key_code: 0,
-                modifier_flag: 0x00100000,  // NSEventModifierFlagCommand
+                modifier_flag: 0x00100000, // NSEventModifierFlagCommand
             },
             // "fn" or anything else defaults to Fn/Globe
             _ => HotkeyParams {
-                key_code: 63,       // kVK_Function (Fn)
-                alt_key_code: 179,  // Globe key on newer keyboards
-                modifier_flag: 0x00800000,  // NSEventModifierFlagFunction
+                key_code: 63,              // kVK_Function (Fn)
+                alt_key_code: 179,         // Globe key on newer keyboards
+                modifier_flag: 0x00800000, // NSEventModifierFlagFunction
             },
         }
     }
@@ -150,6 +166,24 @@ impl HotkeySection {
 
 fn default_asr_url() -> String {
     "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async".into()
+}
+fn default_asr_provider() -> String {
+    "doubao".into()
+}
+fn default_qwen_asr_url() -> String {
+    "wss://dashscope.aliyuncs.com/api-ws/v1/realtime".into()
+}
+fn default_qwen_asr_model() -> String {
+    "qwen3-asr-flash-realtime".into()
+}
+fn default_qwen_language() -> String {
+    "zh".into()
+}
+fn default_qwen_vad_threshold() -> f64 {
+    0.0
+}
+fn default_qwen_vad_silence_duration() -> u64 {
+    400
 }
 fn default_resource_id() -> String {
     "volc.seedasr.sauc.duration".into()
@@ -347,6 +381,8 @@ const DEFAULT_CONFIG_YAML: &str = r#"# Koe - Voice Input Tool Configuration
 # ~/.koe/config.yaml
 
 asr:
+  # ASR provider: doubao | qwen
+  provider: "doubao"
   # Doubao (豆包) Streaming ASR 2.0 (优化版双向流式)
   url: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
   app_key: ""          # X-Api-App-Key (火山引擎 App ID)
@@ -358,6 +394,14 @@ asr:
   enable_itn: true     # 文本规范化 (数字、日期等)
   enable_punc: true    # 自动标点
   enable_nonstream: true  # 二遍识别 (流式+非流式, 提升准确率)
+  # Qwen Realtime ASR (阿里云百炼)
+  qwen_base_url: "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
+  qwen_api_key: ""     # 百炼 API Key
+  qwen_model: "qwen3-asr-flash-realtime"
+  qwen_language: "zh"
+  qwen_enable_vad: true
+  qwen_vad_threshold: 0
+  qwen_vad_silence_duration_ms: 400
 
 llm:
   enabled: true        # set to false to skip LLM correction entirely
