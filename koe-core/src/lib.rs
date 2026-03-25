@@ -412,6 +412,9 @@ async fn run_session(
                     }
                     Ok(AsrEvent::Definite(text)) => {
                         aggregator.update_definite(&text);
+                        if !text.is_empty() {
+                            invoke_interim_text(&text);
+                        }
                     }
                     Ok(AsrEvent::Final(text)) => {
                         aggregator.update_final(&text);
@@ -502,6 +505,7 @@ async fn run_session(
             llm_config.temperature,
             llm_config.top_p,
             llm_config.max_output_tokens,
+            llm_config.max_token_parameter,
             llm_config.timeout_ms,
         );
 
